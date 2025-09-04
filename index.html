@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brendha & Mitchell's Expense Tracker</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Expense Tracker">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIiB2aWV3Qm94PSIwIDAgMTgwIDE4MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJhIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojOWY3YWVhO3N0b3Atb3BhY2l0eToxIiAvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I2VjNDg5OTtzdG9wLW9wYWNpdHk6MSIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0idXJsKCNhKSIgcng9IjQwIi8+PHRleHQgeD0iOTAiIHk9IjEwNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjcwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+💰PC90ZXh0Pjwvc3ZnPg==">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { Plus, Download, DollarSign, TrendingUp, TrendingDown, Users, Calendar, Edit2, Trash2, Save, X } = lucide;
+
+        const ExpenseTracker = () => {
+            const [entries, setEntries] = useState([]);
+            const [inputText, setInputText] = useState('');
+            const [selectedPerson, setSelectedPerson] = useState('Brendha');
+            const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+            const [editingEntry, setEditingEntry] = useState(null);
+            const [editText, setEditText] = useState('');
+
+            // Load data from localStorage on component mount
+            useEffect(() => {
+                const savedEntries = localStorage.getItem('expenseEntries');
+                if (savedEntries) {
+                    setEntries(JSON.parse(savedEntries));
+                }
+            }, []);
+
+            // Save data to localStorage whenever entries change
+            useEffect(() => {
+                localStorage.setItem('expenseEntries', JSON.stringify(entries));
+            }, [entries]);
+
+            const categorizeExpense = (description) => {
+                const desc = description.toLowerCase();
+                if (desc.includes('groceries') || desc.includes('food') || desc.includes('grocery')) return 'Groceries';
+                if (desc.includes('rent')) return 'Rent';
+                if (desc.includes('utilities') || desc.includes('electric') || desc.includes('water') || desc.includes('gas')) return 'Utilities';
+                if (desc.includes('transport') || desc.includes('uber') || desc.includes('gas') || desc.includes('car')) return 'Transportation';
+                if (desc.includes('entertainment') || desc.includes('movie') || desc.includes('restaurant')) return 'Entertainment';
+                return 'Miscellaneous';
+            };
+
+            const parseInput = (text) => {
+                const amountMatch = text.match(/\$?(\d+(?:\.\d{2})?)/);
+                if (!amountMatch) return null;
+
+                const amount = parseFloat(amountMatch[1]);
+                const isIncome = text.toLowerCase().includes('from') || text.toLowerCase().includes('income');
+                
+                let source = '';
+                if (isIncome) {
+                    const fromMatch = text.match(/from\s+(\w+(?:\s+\w+)*)/i);
+                    if (fromMatch) {
+                        source = fromMatch[1];
+                    } else if (text.toLowerCase().includes('mom')) source = 'Mom';
+                    else if (text.toLowerCase().includes('dad')) source = 'Dad';
+                    else if (text.toLowerCase().includes('paycheck')) source = 'Paycheck';
+                    else source = 'Other';
+                }
+
+                const category = isIncome ? 'Income' : categorizeExpense(text);
+
+                return {
+                    id: Date.now(),
+                    amount,
+                    description: text,
+                    category,
+                    source,
+                    isIncome,
+                    person: selectedPerson,
+                    date: new Date().toISOString().split('T')[0],
+                    month: new Date().toISOString().slice(0, 7)
+                };
+            };
+
+            const addEntry = () => {
+                const parsed = parseInput(inputText);
+                if (parsed) {
+                    setEntries([...entries, parsed]);
+                    setInputText('');
+                } else {
+                    alert('Please enter a valid amount and description (e.g., "$50.78 for groceries")');
+                }
+            };
+
+            const deleteEntry = (id) => {
+                if (confirm('Are you sure you want to delete this entry?')) {
+                    setEntries(entries.filter(entry => entry.id !== id));
+                }
+            };
+
+            const startEdit = (entry) => {
+                setEditingEntry(entry.id);
+                setEditText(entry.description);
+            };
+
+            const saveEdit = (id) => {
+                const parsed = parseInput(editText);
+                if (parsed) {
+                    setEntries(entries.map(entry => 
+                        entry.id === id 
+                            ? { ...parsed, id: entry.id, date: entry.date, month: entry.month }
+                            : entry
+                    ));
+                    setEditingEntry(null);
+                    setEditText('');
+                } else {
+                    alert('Please enter a valid amount and description');
+                }
+            };
+
+            const cancelEdit = () => {
+                setEditingEntry(null);
+                setEditText('');
+            };
+
+            const getMonthlyData = (month) => {
+                return entries.filter(entry => entry.month === month);
+            };
+
+            const calculateTotals = (monthEntries) => {
+                const brendhaExpenses = monthEntries
+                    .filter(e => e.person === 'Brendha' && !e.isIncome)
+                    .reduce((sum, e) => sum + e.amount, 0);
+                
+                const mitchellExpenses = monthEntries
+                    .filter(e => e.person === 'Mitchell' && !e.isIncome)
+                    .reduce((sum, e) => sum + e.amount, 0);
+
+                const totalExpenses = brendhaExpenses + mitchellExpenses;
+                const totalIncome = monthEntries
+                    .filter(e => e.isIncome)
+                    .reduce((sum, e) => sum + e.amount, 0);
+
+                const difference = brendhaExpenses - mitchellExpenses;
+                const owedAmount = Math.abs(difference) / 2;
+
+                return {
+                    brendhaExpenses,
+                    mitchellExpenses,
+                    totalExpenses,
+                    totalIncome,
+                    difference,
+                    owedAmount,
+                    whoOwes: difference > 0 ? 'Mitchell owes Brendha' : 'Brendha owes Mitchell'
+                };
+            };
+
+            const getCategoryBreakdown = (monthEntries) => {
+                const breakdown = {};
+                monthEntries.forEach(entry => {
+                    if (!breakdown[entry.category]) {
+                        breakdown[entry.category] = 0;
+                    }
+                    breakdown[entry.category] += entry.amount;
+                });
+                return breakdown;
+            };
+
+            const exportToCSV = () => {
+                const monthEntries = getMonthlyData(currentMonth);
+                if (monthEntries.length === 0) {
+                    alert('No entries for this month to export');
+                    return;
+                }
+
+                const headers = ['Date', 'Person', 'Amount', 'Category', 'Description', 'Source', 'Type'];
+                const csvData = monthEntries.map(entry => [
+                    entry.date,
+                    entry.person,
+                    entry.amount.toFixed(2),
+                    entry.category,
+                    entry.description,
+                    entry.source || '',
+                    entry.isIncome ? 'Income' : 'Expense'
+                ]);
+
+                const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `expenses_${currentMonth}.csv`;
+                a.click();
+            };
+
+            const monthEntries = getMonthlyData(currentMonth);
+            const totals = calculateTotals(monthEntries);
+            const categoryBreakdown = getCategoryBreakdown(monthEntries.filter(e => !e.isIncome));
+            const incomeBreakdown = getCategoryBreakdown(monthEntries.filter(e => e.isIncome));
+
+            const availableMonths = [...new Set(entries.map(e => e.month))].sort().reverse();
+
+            return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-4" },
+                React.createElement('div', { className: "max-w-6xl mx-auto" },
+                    React.createElement('div', { className: "text-center mb-8" },
+                        React.createElement('h1', { className: "text-4xl font-bold text-gray-800 mb-2" }, '💰 Brendha & Mitchell\'s Expense Tracker'),
+                        React.createElement('p', { className: "text-gray-600" }, 'Track expenses, split costs, and settle balances easily!')
+                    ),
+
+                    // Input Section
+                    React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6 mb-6" },
+                        React.createElement('div', { className: "flex gap-4 mb-4" },
+                            React.createElement('select', {
+                                value: selectedPerson,
+                                onChange: (e) => setSelectedPerson(e.target.value),
+                                className: "px-4 py-2 border rounded-lg"
+                            },
+                                React.createElement('option', { value: "Brendha" }, 'Brendha'),
+                                React.createElement('option', { value: "Mitchell" }, 'Mitchell')
+                            ),
+                            
+                            React.createElement('input', {
+                                type: "text",
+                                value: inputText,
+                                onChange: (e) => setInputText(e.target.value),
+                                placeholder: "e.g., '$50.78 for groceries' or '$200 from mom'",
+                                className: "flex-1 px-4 py-2 border rounded-lg",
+                                onKeyPress: (e) => e.key === 'Enter' && addEntry()
+                            }),
+                            
+                            React.createElement('button', {
+                                onClick: addEntry,
+                                className: "bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2"
+                            },
+                                React.createElement(Plus, { size: 20 }),
+                                'Add'
+                            )
+                        ),
+                        
+                        React.createElement('div', { className: "text-sm text-gray-600" },
+                            React.createElement('p', null, React.createElement('strong', null, 'Examples:')),
+                            React.createElement('p', null, '• "$45.50 for groceries" • "$800 rent payment" • "$150 from mom" • "$25.99 for utilities"')
+                        )
+                    ),
+
+                    // Month Selector
+                    React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6 mb-6" },
+                        React.createElement('div', { className: "flex items-center gap-4" },
+                            React.createElement(Calendar, { className: "text-purple-600", size: 24 }),
+                            React.createElement('select', {
+                                value: currentMonth,
+                                onChange: (e) => setCurrentMonth(e.target.value),
+                                className: "px-4 py-2 border rounded-lg"
+                            },
+                                availableMonths.length > 0 ? (
+                                    availableMonths.map(month =>
+                                        React.createElement('option', { key: month, value: month },
+                                            new Date(month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+                                        )
+                                    )
+                                ) : (
+                                    React.createElement('option', { value: currentMonth },
+                                        new Date(currentMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+                                    )
+                                )
+                            ),
+                            
+                            React.createElement('button', {
+                                onClick: exportToCSV,
+                                className: "bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+                            },
+                                React.createElement(Download, { size: 16 }),
+                                'Export CSV'
+                            )
+                        )
+                    ),
+
+                    // Summary Cards
+                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" },
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('div', { className: "flex items-center gap-3" },
+                                React.createElement(TrendingDown, { className: "text-red-500", size: 24 }),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-gray-600 text-sm" }, 'Total Expenses'),
+                                    React.createElement('p', { className: "text-2xl font-bold text-gray-800" }, `$${totals.totalExpenses.toFixed(2)}`)
+                                )
+                            )
+                        ),
+
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('div', { className: "flex items-center gap-3" },
+                                React.createElement(TrendingUp, { className: "text-green-500", size: 24 }),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-gray-600 text-sm" }, 'Total Income'),
+                                    React.createElement('p', { className: "text-2xl font-bold text-gray-800" }, `$${totals.totalIncome.toFixed(2)}`)
+                                )
+                            )
+                        ),
+
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('div', { className: "flex items-center gap-3" },
+                                React.createElement(DollarSign, { className: "text-blue-500", size: 24 }),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-gray-600 text-sm" }, 'Net Balance'),
+                                    React.createElement('p', { className: "text-2xl font-bold text-gray-800" },
+                                        `$${(totals.totalIncome - totals.totalExpenses).toFixed(2)}`
+                                    )
+                                )
+                            )
+                        ),
+
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('div', { className: "flex items-center gap-3" },
+                                React.createElement(Users, { className: "text-purple-500", size: 24 }),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-gray-600 text-sm" }, 'Balance Due'),
+                                    React.createElement('p', { className: "text-lg font-bold text-gray-800" },
+                                        totals.owedAmount > 0 ? `$${totals.owedAmount.toFixed(2)}` : 'Even'
+                                    ),
+                                    React.createElement('p', { className: "text-xs text-gray-500" }, totals.owedAmount > 0 ? totals.whoOwes : '')
+                                )
+                            )
+                        )
+                    ),
+
+                    // Individual Spending
+                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('h3', { className: "text-xl font-bold text-gray-800 mb-4" }, '👩‍💼 Brendha\'s Spending'),
+                            React.createElement('p', { className: "text-3xl font-bold text-purple-600" }, `$${totals.brendhaExpenses.toFixed(2)}`)
+                        ),
+                        
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('h3', { className: "text-xl font-bold text-gray-800 mb-4" }, '👨‍💼 Mitchell\'s Spending'),
+                            React.createElement('p', { className: "text-3xl font-bold text-blue-600" }, `$${totals.mitchellExpenses.toFixed(2)}`)
+                        )
+                    ),
+
+                    // Category Breakdowns
+                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('h3', { className: "text-xl font-bold text-gray-800 mb-4" }, '📊 Expense Categories'),
+                            ...Object.entries(categoryBreakdown).map(([category, amount]) =>
+                                React.createElement('div', { key: category, className: "flex justify-between items-center py-2 border-b" },
+                                    React.createElement('span', { className: "text-gray-700" }, category),
+                                    React.createElement('span', { className: "font-semibold text-red-600" }, `$${amount.toFixed(2)}`)
+                                )
+                            )
+                        ),
+
+                        React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                            React.createElement('h3', { className: "text-xl font-bold text-gray-800 mb-4" }, '💰 Income Sources'),
+                            Object.entries(incomeBreakdown).length > 0 ? (
+                                ...Object.entries(incomeBreakdown).map(([source, amount]) =>
+                                    React.createElement('div', { key: source, className: "flex justify-between items-center py-2 border-b" },
+                                        React.createElement('span', { className: "text-gray-700" }, source),
+                                        React.createElement('span', { className: "font-semibold text-green-600" }, `$${amount.toFixed(2)}`)
+                                    )
+                                )
+                            ) : (
+                                React.createElement('p', { className: "text-gray-500" }, 'No income recorded this month')
+                            )
+                        )
+                    ),
+
+                    // Recent Entries
+                    React.createElement('div', { className: "bg-white rounded-xl shadow-lg p-6" },
+                        React.createElement('h3', { className: "text-xl font-bold text-gray-800 mb-4" }, '📝 Recent Entries'),
+                        React.createElement('div', { className: "max-h-96 overflow-y-auto" },
+                            monthEntries.length > 0 ? (
+                                monthEntries.slice().reverse().map(entry =>
+                                    React.createElement('div', { key: entry.id, className: "flex justify-between items-center py-3 border-b hover:bg-gray-50" },
+                                        React.createElement('div', { className: "flex-1" },
+                                            editingEntry === entry.id ? (
+                                                React.createElement('div', { className: "flex gap-2 items-center" },
+                                                    React.createElement('input', {
+                                                        type: "text",
+                                                        value: editText,
+                                                        onChange: (e) => setEditText(e.target.value),
+                                                        className: "flex-1 px-3 py-1 border rounded",
+                                                        placeholder: "e.g., '$50.78 for groceries'",
+                                                        onKeyPress: (e) => e.key === 'Enter' && saveEdit(entry.id)
+                                                    }),
+                                                    React.createElement('button', {
+                                                        onClick: () => saveEdit(entry.id),
+                                                        className: "bg-green-500 text-white p-1 rounded hover:bg-green-600",
+                                                        title: "Save"
+                                                    },
+                                                        React.createElement(Save, { size: 16 })
+                                                    ),
+                                                    React.createElement('button', {
+                                                        onClick: cancelEdit,
+                                                        className: "bg-gray-500 text-white p-1 rounded hover:bg-gray-600",
+                                                        title: "Cancel"
+                                                    },
+                                                        React.createElement(X, { size: 16 })
+                                                    )
+                                                )
+                                            ) : (
+                                                React.createElement(React.Fragment, null,
+                                                    React.createElement('p', { className: "font-medium text-gray-800" }, entry.description),
+                                                    React.createElement('p', { className: "text-sm text-gray-600" },
+                                                        `${entry.person} • ${entry.category} • ${entry.date}${entry.source ? ` • from ${entry.source}` : ''}`
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        React.createElement('div', { className: "flex items-center gap-2" },
+                                            React.createElement('span', { className: `font-bold ${entry.isIncome ? 'text-green-600' : 'text-red-600'}` },
+                                                `${entry.isIncome ? '+' : '-'}$${entry.amount.toFixed(2)}`
+                                            ),
+                                            editingEntry !== entry.id && React.createElement('div', { className: "flex gap-1" },
+                                                React.createElement('button', {
+                                                    onClick: () => startEdit(entry),
+                                                    className: "bg-blue-500 text-white p-1 rounded hover:bg-blue-600",
+                                                    title: "Edit"
+                                                },
+                                                    React.createElement(Edit2, { size: 14 })
+                                                ),
+                                                React.createElement('button', {
+                                                    onClick: () => deleteEntry(entry.id),
+                                                    className: "bg-red-500 text-white p-1 rounded hover:bg-red-600",
+                                                    title: "Delete"
+                                                },
+                                                    React.createElement(Trash2, { size: 14 })
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            ) : (
+                                React.createElement('p', { className: "text-gray-500 text-center py-8" }, 'No entries for this month yet')
+                            )
+                        )
+                    )
+                )
+            );
+        };
+
+        ReactDOM.render(React.createElement(ExpenseTracker), document.getElementById('root'));
+    </script>
+</body>
+</html>
